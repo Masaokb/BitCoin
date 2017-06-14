@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import websockets
 
-from .websocket import WebSocketParent
+from .websocket import *
 
 
 class CoincheckWebSocketParent(WebSocketParent):
@@ -17,6 +17,14 @@ class CoincheckWebSocketParent(WebSocketParent):
             while True:
                 msg = json.loads(await ws.recv())
                 await self.on_message(msg)
+
+    @abstractmethod
+    async def subscribe(self, ws) -> None:
+        """Send json to start to subscribe"""
+
+    @abstractmethod
+    async def on_message(self, msg) -> None:
+        """Processes of callback on message receiving."""
 
 
 class CoincheckWebSocketTrade(CoincheckWebSocketParent):
@@ -38,17 +46,16 @@ class CoincheckWebSocketTrade(CoincheckWebSocketParent):
     async def subscribe(self, ws):
         msg = {'type': 'subscribe', 'channel': 'btc_jpy-trades'}
         await ws.send(json.dumps(msg))
-        self.logger.info('Subscribed to trades')
+        self.logger.info('Start to subscribe')
 
     async def on_message(self, msg):
         time = pd.Timestamp.now()
         price, volume, side = self._parse_trade(msg)
         if self.enough_gathered and price > self.upper_band:
-            self.logger.info(f'Break Upper Band when Price: {price} Volume {volume}')
+            self.logger.info(f'Break Upper Band | Price: {price} UpperBand: {self.upper_band}')
         elif self.enough_gathered and price < self.lower_band:
-            self.logger.info(f'Break Lower Band when Price: {price} Volume: {volume}')
+            self.logger.info(f'Break Lower Band | Price: {price} LowerBand: {self.lower_band}')
         self._update_order_dict(time, price, volume, side)
-        self.logger.info(f'{len(self.order_dict["price"])}')
         self._get_bolingers()
 
     def _update_order_dict(self, time, price, volume, side):
@@ -65,7 +72,7 @@ class CoincheckWebSocketTrade(CoincheckWebSocketParent):
 
     def _get_bolingers(self):
         mean = np.mean(self.order_dict['price'])
-        std_dev = np.std(self.order_dict['volume'])
+        std_dev = np.std(self.order_dict['price'])
         self.upper_band = mean + std_dev
         self.lower_band = mean - std_dev
 

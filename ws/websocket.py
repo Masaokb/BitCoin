@@ -1,5 +1,5 @@
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod, ABCMeta
 
 from .utils import make_logger
 
@@ -11,7 +11,7 @@ class WebSocketParent(metaclass=ABCMeta):
     """
 
     def __init__(self):
-        self.logger = make_logger()
+        self.logger = make_logger(name=self.__class__.__name__)
         self.logger.info('Initializing...')
 
     @abstractmethod
